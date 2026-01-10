@@ -1,13 +1,23 @@
 package com.yingke.mediacodec.player.media;
 
+import static android.media.projection.MediaProjection.*;
+
 import android.content.Context;
+import android.graphics.ImageFormat;
+import android.graphics.PixelFormat;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.media.Image;
+import android.media.ImageReader;
+import android.media.ImageWriter;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.media.MediaMetadataRetriever;
+import android.media.projection.MediaProjection;
+import android.os.Handler;
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.Surface;
@@ -18,6 +28,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 
 
 public class MediaMoviePlayer {
@@ -40,7 +51,7 @@ public class MediaMoviePlayer {
     private static final int REQUEST_QUIT = 9;
 
     public static final boolean DEBUG = true;
-    public static final String TAG_STATIC = "MediaMoviePlayer:";
+    public static final String TAG_STATIC = "MediaMoviePlayer";
     public static final String TAG = TAG_STATIC;
 
     private Context mContext;
@@ -73,6 +84,10 @@ public class MediaMoviePlayer {
     private final Object mVideoSync = new Object();
     // 输出Surface
     private Surface mOutputSurface;
+    private static ImageWriter mOutputImageWriter;
+
+    private Surface mImageReaderSurface;
+
     // 视频解码器
     private MediaCodec mVideoMediaCodec;
     protected MediaExtractor mVideoMediaExtractor;
@@ -97,11 +112,16 @@ public class MediaMoviePlayer {
 
     public int getHeight() { return mVideoHeight; }
 
+
+    private ImageReader mImageReader;
+    private Handler mImageReaderCallbackHandler;
+
     public MediaMoviePlayer(Context context, final Surface outputSurface, final IPlayerListener callback, final boolean audioEnable) {
         PlayerLog.w("Constructor:");
 
         mContext = context;
         mOutputSurface = outputSurface;
+
         mCallback = callback;
         mAudioEnabled = audioEnable;
 
@@ -114,6 +134,8 @@ public class MediaMoviePlayer {
 
     public final void prepare() throws Exception {
         PlayerLog.w("prepare:");
+
+        mOutputImageWriter = ImageWriter.newInstance(mOutputSurface, 1);
 
         // 初始化所有需要的数据结构，准备解码
         mMediaMetadata = new MediaMetadataRetriever();
@@ -130,8 +152,12 @@ public class MediaMoviePlayer {
         mFrameRate = mediaFormat.getInteger(MediaFormat.KEY_FRAME_RATE);
         final String mediaMime = mediaFormat.getString(MediaFormat.KEY_MIME);
 
+        mImageReader = ImageReader.newInstance(mVideoWidth, mVideoHeight, ImageFormat.YUV_420_888, 3);
+        mImageReader.setOnImageAvailableListener(new OnImageListenser(), mImageReaderCallbackHandler);
+        mImageReaderSurface = mImageReader.getSurface();
+
         mVideoMediaCodec = MediaCodec.createDecoderByType(mediaMime);
-        mVideoMediaCodec.configure(mediaFormat, mOutputSurface, null, 0);
+        mVideoMediaCodec.configure(mediaFormat, mImageReaderSurface, null, 0);
         mVideoMediaCodec.start();
 
         mVideoBufferInfo = new MediaCodec.BufferInfo();
@@ -140,8 +166,6 @@ public class MediaMoviePlayer {
 
         mVideoInputDone = false;
         mVideoOutputDone = false;
-
-        new Thread(mVideoTask, "VideoTask").start();
 
         if (mCallback != null) {
             mCallback.onPrepared();
@@ -157,6 +181,7 @@ public class MediaMoviePlayer {
 
     public final void play() {
         mIsRunning = true;
+        new Thread(mVideoTask, "VideoTask").start();
     }
 
     public final void pause() {
@@ -321,6 +346,7 @@ public class MediaMoviePlayer {
                     }
                 }
 
+                Log.i(TAG, "onImageAvailable test: releaseOutputBuffer");
                 // 释放输出缓存，第二个参数是true会渲染到surface
                 mVideoMediaCodec.releaseOutputBuffer(outputBufferIndex, doRender);
 
@@ -431,6 +457,45 @@ public class MediaMoviePlayer {
      */
     public boolean isPaused() {
         return mPlayerState == STATE_PAUSED;
+    }
+
+    static class OnImageListenser implements ImageReader.OnImageAvailableListener
+    {
+        private ArrayList<Image> imageList = new ArrayList<>();
+
+        @Override
+        public void onImageAvailable(ImageReader imageReader) {
+            Log.i(TAG, "onImageAvailable!!!");
+
+            Image image = null;
+            try {
+                image = imageReader.acquireLatestImage();
+
+//                mOutputImageWriter.queueInputImage(image);
+
+            }  catch (Exception ex) {
+                Log.e(TAG, ex.toString());
+
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(3000);
+                        Log.i(TAG, "onImageAvailable: clear imageList");
+                        for (int i = 0; i < imageList.size(); i++) {
+                            imageList.get(i).close();
+                        }
+                        imageList.clear();
+
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }).start();
+            }
+
+            if (image != null)
+                imageList.add(image);
+
+//            image.close();
+        }
     }
 
 }
