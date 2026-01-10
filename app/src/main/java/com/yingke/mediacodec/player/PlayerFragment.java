@@ -8,7 +8,6 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import com.yingke.mediacodec.R;
-import com.yingke.mediacodec.player.view.IPlayerView;
 import com.yingke.mediacodec.player.view.MediaCodecPlayerView;
 
 /**
@@ -28,7 +27,7 @@ public class PlayerFragment extends Fragment {
     private static final String TAG = "PlayerFragment";
     String path = "http://mov.bn.netease.com/open-movie/nos/mp4/2016/12/15/FC7CH3GGQ_shd.mp4";
 
-    private IPlayerView mPlayerView;
+    private MediaCodecPlayerView mPlayerView;
 
     public PlayerFragment() {
         setRetainInstance(true);

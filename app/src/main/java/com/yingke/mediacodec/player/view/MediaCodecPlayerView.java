@@ -22,6 +22,8 @@ import com.yingke.mediacodec.player.media.MediaMoviePlayer;
 import static com.yingke.mediacodec.player.media.MediaMoviePlayer.DEBUG;
 import static com.yingke.mediacodec.player.media.MediaMoviePlayer.TAG;
 
+import java.io.IOException;
+
 
 /**
  * 功能：播放器
@@ -34,7 +36,7 @@ import static com.yingke.mediacodec.player.media.MediaMoviePlayer.TAG;
  * 最后修改人：无
  * <p>
  */
-public class MediaCodecPlayerView extends FrameLayout implements IPlayerView{
+public class MediaCodecPlayerView extends FrameLayout {
 
     private static final int SURFACE_TYPE_NONE = 0;
     private static final int SURFACE_TYPE_SURFACE_VIEW = 1;
@@ -72,7 +74,7 @@ public class MediaCodecPlayerView extends FrameLayout implements IPlayerView{
         int surfaceType = SURFACE_TYPE_SURFACE_VIEW;
         int resizeMode = AspectRatioFrameLayout.ResizeMode.RESIZE_MODE_FIT;
         if (attrs != null) {
-            TypedArray a = getContext().getTheme().obtainStyledAttributes(attrs, R.styleable.PlayerView, 0, 0);
+            TypedArray a = getContext().getTheme().obtainStyledAttributes(attrs, R.styleable.MediaCodecPlayerView, 0, 0);
             surfaceType = a.getInt(R.styleable.MediaCodecPlayerView_surface_type, surfaceType);
             resizeMode = a.getInt(R.styleable.MediaCodecPlayerView_surface_type, resizeMode);
             a.recycle();
@@ -115,11 +117,14 @@ public class MediaCodecPlayerView extends FrameLayout implements IPlayerView{
      */
     public void initializePlayer(){
         if (mPlayer != null) {
-            mPlayer.release();
+            try {
+                mPlayer.release();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
             mPlayer = null;
         }
         mPlayer = new MediaMoviePlayer(getContext(), mSurface, mIPlayerListener, true);
-
     }
 
     @Override
@@ -157,18 +162,20 @@ public class MediaCodecPlayerView extends FrameLayout implements IPlayerView{
     }
 
 
-    @Override
     public void prepare() {
         if (DEBUG) {
             Log.e(TAG, "prepare()" );
         }
 
         if (mPlayer != null) {
-            mPlayer.prepare();
+            try {
+                mPlayer.prepare();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
-    @Override
     public void start() {
         if (DEBUG) {
             Log.e(TAG, "start()" );
@@ -178,7 +185,6 @@ public class MediaCodecPlayerView extends FrameLayout implements IPlayerView{
         }
     }
 
-    @Override
     public void pause() {
         if (DEBUG) {
             Log.e(TAG, "pause()" );
@@ -188,7 +194,6 @@ public class MediaCodecPlayerView extends FrameLayout implements IPlayerView{
         }
     }
 
-    @Override
     public void resume() {
         if (DEBUG) {
             Log.e(TAG, "pause()" );
@@ -198,7 +203,6 @@ public class MediaCodecPlayerView extends FrameLayout implements IPlayerView{
         }
     }
 
-    @Override
     public String getDuration() {
         if (DEBUG) {
             Log.e(TAG, "getDuration()" );
@@ -206,7 +210,6 @@ public class MediaCodecPlayerView extends FrameLayout implements IPlayerView{
         return "";
     }
 
-    @Override
     public int getCurrentPosition() {
         if (DEBUG) {
             Log.e(TAG, "getCurrentPosition()" );
@@ -214,7 +217,6 @@ public class MediaCodecPlayerView extends FrameLayout implements IPlayerView{
         return 0;
     }
 
-    @Override
     public boolean isStop() {
         if (DEBUG) {
             Log.e(TAG, "isStop()" );
@@ -222,7 +224,6 @@ public class MediaCodecPlayerView extends FrameLayout implements IPlayerView{
         return mPlayer != null && mPlayer.isStop();
     }
 
-    @Override
     public boolean isPlaying() {
         if (DEBUG) {
             Log.e(TAG, "isPlaying()" );
@@ -230,7 +231,6 @@ public class MediaCodecPlayerView extends FrameLayout implements IPlayerView{
         return mPlayer != null && mPlayer.isPlaying();
     }
 
-    @Override
     public boolean isPaused() {
         if (DEBUG) {
             Log.e(TAG, "isPaused()" );
@@ -238,7 +238,6 @@ public class MediaCodecPlayerView extends FrameLayout implements IPlayerView{
         return mPlayer != null && mPlayer.isPaused();
     }
 
-    @Override
     public void setVideoPath(String path) {
         if (DEBUG) {
             Log.e(TAG, "setVideoPath() mPlayer = " + mPlayer );

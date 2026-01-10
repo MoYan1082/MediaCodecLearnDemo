@@ -2,7 +2,7 @@ package com.yingke.mediacodec;
 
 import android.app.Application;
 
-import com.yingke.mediacodec.recorder.shader.OpenGlCameraSdk;
+//import com.yingke.mediacodec.recorder.shader.OpenGlCameraSdk;
 
 
 /**
@@ -23,7 +23,7 @@ public class MediaCodecApplication extends Application {
     public void onCreate() {
         super.onCreate();
         app = this;
-        OpenGlCameraSdk.getInstance().init(this);
+//        OpenGlCameraSdk.getInstance().init(this);
     }
 
     public static MediaCodecApplication getInstance() {

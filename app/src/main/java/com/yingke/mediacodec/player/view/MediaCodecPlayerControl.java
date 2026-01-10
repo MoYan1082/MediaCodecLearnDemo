@@ -34,7 +34,7 @@ public class MediaCodecPlayerControl extends FrameLayout {
     private boolean mIsShowing;
 
     private ImageButton mPlayBtn;
-    private IPlayerView mPlayerView;
+    private MediaCodecPlayerView mPlayerView;
 
     public MediaCodecPlayerControl(@NonNull Context context) {
         super(context);
@@ -60,33 +60,39 @@ public class MediaCodecPlayerControl extends FrameLayout {
                 if (mPlayerView == null) {
                     return;
                 }
-                if (mPlayerView.isStop()) {
-                    if (DEBUG) {
-                        Log.e(TAG, "startPlay()" );
-                    }
+
+                if (!mPlayerView.isPlaying()) {
                     startPlay();
                     mPlayBtn.setImageResource(R.mipmap.icon_pause);
-                    return;
-                }
-                if (mPlayerView.isPlaying()) {
-                     if (DEBUG) {
-                         Log.e(TAG, "mPlayerView.pause()" );
-                     }
-
-                     mPlayerView.pause();
-                     mPlayBtn.setImageResource(R.mipmap.icon_play);
-                     return;
                 }
 
-                if (mPlayerView.isPaused()){
-                     if (DEBUG) {
-                         Log.e(TAG, "mPlayerView.start()" );
-                     }
-
-                     mPlayerView.start();
-                     mPlayBtn.setImageResource(R.mipmap.icon_pause);
-                     return;
-                }
+//                if (mPlayerView.isStop()) {
+//                    if (DEBUG) {
+//                        Log.e(TAG, "startPlay()" );
+//                    }
+//                    startPlay();
+//                    mPlayBtn.setImageResource(R.mipmap.icon_pause);
+//                    return;
+//                }
+//                if (mPlayerView.isPlaying()) {
+//                     if (DEBUG) {
+//                         Log.e(TAG, "mPlayerView.pause()" );
+//                     }
+//
+//                     mPlayerView.pause();
+//                     mPlayBtn.setImageResource(R.mipmap.icon_play);
+//                     return;
+//                }
+//
+//                if (mPlayerView.isPaused()){
+//                     if (DEBUG) {
+//                         Log.e(TAG, "mPlayerView.start()" );
+//                     }
+//
+//                     mPlayerView.start();
+//                     mPlayBtn.setImageResource(R.mipmap.icon_pause);
+//                     return;
+//                }
             }
         });
     }
@@ -156,7 +162,7 @@ public class MediaCodecPlayerControl extends FrameLayout {
      * 设置播放器
      * @param player
      */
-    public void setMediaPlayer(IPlayerView player){
+    public void setMediaPlayer(MediaCodecPlayerView player){
         mPlayerView = player;
     }
 

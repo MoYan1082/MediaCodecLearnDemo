@@ -8,12 +8,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 
-import com.yingke.mediacodec.compose.ui.MediaCodecAudioComposeActivity;
-import com.yingke.mediacodec.connect.ui.MediaCodecVideoConnectActivity;
 import com.yingke.mediacodec.simple.MediaMuxerActivity;
 import com.yingke.mediacodec.player.MediaCodecPlayerActivity;
-import com.yingke.mediacodec.recorder.MediaCodecRecorderActivity;
-import com.yingke.mediacodec.transcode.ui.MediaCodecTransCodeActivity;
+
 
 import java.util.ArrayList;
 
@@ -31,12 +28,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         mFunctionList = (RecyclerView)findViewById(R.id.main_recyclerview);
         mFunctionList.setLayoutManager(new LinearLayoutManager(this,LinearLayoutManager.VERTICAL,false));
         data = new ArrayList<>();
-        add("MediaCodec下载网络视频", MediaMuxerActivity.class);
         add("MediaCodec播放器", MediaCodecPlayerActivity.class);
-        add("MediaCodec录视频", MediaCodecRecorderActivity.class);
-        add("MediaCodec转码", MediaCodecTransCodeActivity.class);
-        add("MediaCodec音频分离和混合", MediaCodecAudioComposeActivity.class);
-        add("MediaCodec多视频拼接", MediaCodecVideoConnectActivity.class);
 
         mFunctionList.setAdapter(new MenuAdapter());
     }
