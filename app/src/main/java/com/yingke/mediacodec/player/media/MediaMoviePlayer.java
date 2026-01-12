@@ -92,8 +92,8 @@ public class MediaMoviePlayer {
     private MediaCodec mVideoMediaCodec;
     protected MediaExtractor mVideoMediaExtractor;
     private MediaCodec.BufferInfo mVideoBufferInfo;
-    private ByteBuffer[] mVideoInputBuffers;
-    private ByteBuffer[] mVideoOutputBuffers;
+//    private ByteBuffer[] mVideoInputBuffers;
+//    private ByteBuffer[] mVideoOutputBuffers;
     // 视频轨道索引
     private volatile int mVideoTrackIndex;
     private volatile boolean mVideoInputDone;
@@ -135,7 +135,7 @@ public class MediaMoviePlayer {
     public final void prepare() throws Exception {
         PlayerLog.w("prepare:");
 
-        mOutputImageWriter = ImageWriter.newInstance(mOutputSurface, 1);
+//        mOutputImageWriter = ImageWriter.newInstance(mOutputSurface, 1);
 
         // 初始化所有需要的数据结构，准备解码
         mMediaMetadata = new MediaMetadataRetriever();
@@ -157,12 +157,12 @@ public class MediaMoviePlayer {
         mImageReaderSurface = mImageReader.getSurface();
 
         mVideoMediaCodec = MediaCodec.createDecoderByType(mediaMime);
-        mVideoMediaCodec.configure(mediaFormat, mImageReaderSurface, null, 0);
+        mVideoMediaCodec.configure(mediaFormat, mOutputSurface, null, 0);
         mVideoMediaCodec.start();
 
         mVideoBufferInfo = new MediaCodec.BufferInfo();
-        mVideoInputBuffers = mVideoMediaCodec.getInputBuffers();
-        mVideoOutputBuffers = mVideoMediaCodec.getOutputBuffers();
+//        mVideoInputBuffers = mVideoMediaCodec.getInputBuffers();
+//        mVideoOutputBuffers = mVideoMediaCodec.getOutputBuffers();
 
         mVideoInputDone = false;
         mVideoOutputDone = false;
@@ -184,13 +184,9 @@ public class MediaMoviePlayer {
         new Thread(mVideoTask, "VideoTask").start();
     }
 
-    public final void pause() {
+    public final void pause() { }
 
-    }
-
-    public final void resume() {
-
-    }
+    public final void resume() { }
 
     private final Runnable mVideoTask = new Runnable() {
 
@@ -239,8 +235,23 @@ public class MediaMoviePlayer {
     private final void handleInputVideo() {
         final long presentationTimeUs = mVideoMediaExtractor.getSampleTime();
 
-        // 读一帧视频数据给解码器
-        final boolean b = internalProcessInput(mVideoMediaCodec, mVideoMediaExtractor, mVideoInputBuffers, presentationTimeUs, false);
+
+        boolean b = true;
+        while (mIsRunning) {
+            final int inputBufferIndex = mVideoMediaCodec.dequeueInputBuffer(TIMEOUT_USEC);
+            if (inputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                break;
+            } else if (inputBufferIndex >= 0) {
+                ByteBuffer inputBuffer = mVideoMediaCodec.getInputBuffer(inputBufferIndex);
+                final int size = mVideoMediaExtractor.readSampleData(inputBuffer, 0);
+                if (size > 0) {
+                    mVideoMediaCodec.queueInputBuffer(inputBufferIndex, 0, size, presentationTimeUs, 0);
+                }
+                b = mVideoMediaExtractor.advance();
+                break;
+            }
+        }
+
         if (!b) {
             // 读结束
             if (DEBUG) {
@@ -264,39 +275,6 @@ public class MediaMoviePlayer {
             }
         }
     }
-    /**
-     * 读一帧视频数据给解码器
-     * @param codec
-     * @param extractor
-     * @param inputBuffers
-     * @param presentationTimeUs
-     * @param isAudio
-     */
-    protected boolean internalProcessInput(final MediaCodec codec, final MediaExtractor extractor, final ByteBuffer[] inputBuffers, final long presentationTimeUs, final boolean isAudio) {
-		if (DEBUG) Log.v(TAG, "internalProcessInput:presentationTimeUs=" + presentationTimeUs);
-        boolean result = true;
-        while (mIsRunning) {
-            // 获得一个输入缓存
-            final int inputBufIndex = codec.dequeueInputBuffer(TIMEOUT_USEC);
-            if (inputBufIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                break;
-            }
-
-            if (inputBufIndex >= 0) {
-                // 读数据到intputBuffer
-                final int size = extractor.readSampleData(inputBuffers[inputBufIndex], 0);
-
-                if (size > 0) {
-                    // 把 buffer数据送入解码器 解码
-                    codec.queueInputBuffer(inputBufIndex, 0, size, presentationTimeUs, 0);
-                }
-                // false 表示没有数据可读
-                result = extractor.advance();
-                break;
-            }
-        }
-        return result;
-    }
 
     /**
      * 输出一帧数据到 surface
@@ -315,11 +293,6 @@ public class MediaMoviePlayer {
 
             } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
 
-                // 输出缓存数组改变，需要使用新的缓存数据
-                mVideoOutputBuffers = mVideoMediaCodec.getOutputBuffers();
-                if (DEBUG) {
-                    Log.d(TAG, "INFO_OUTPUT_BUFFERS_CHANGED:");
-                }
 
             } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
 
@@ -335,20 +308,14 @@ public class MediaMoviePlayer {
 
             } else {
 
-                boolean doRender = false;
                 if (mVideoBufferInfo.size > 0) {
-                    doRender = !internalWriteVideo(mVideoOutputBuffers[outputBufferIndex], 0, mVideoBufferInfo.size, mVideoBufferInfo.presentationTimeUs);
-
-                    if (doRender) {
-                        // 调整显示时间，不太懂
-                        if (!frameCallback.onFrameAvailable(mVideoBufferInfo.presentationTimeUs))
-                            mVideoStartTime = adjustPresentationTime(mVideoSync, mVideoStartTime, mVideoBufferInfo.presentationTimeUs);
-                    }
+                    // 调整显示时间，不太懂
+                    if (!frameCallback.onFrameAvailable(mVideoBufferInfo.presentationTimeUs))
+                        mVideoStartTime = adjustPresentationTime(mVideoSync, mVideoStartTime, mVideoBufferInfo.presentationTimeUs);
                 }
 
-                Log.i(TAG, "onImageAvailable test: releaseOutputBuffer");
                 // 释放输出缓存，第二个参数是true会渲染到surface
-                mVideoMediaCodec.releaseOutputBuffer(outputBufferIndex, doRender);
+                mVideoMediaCodec.releaseOutputBuffer(outputBufferIndex, true);
 
                 if ((mVideoBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                     // 输出结束
@@ -362,18 +329,6 @@ public class MediaMoviePlayer {
                 }
             }
         }
-    }
-
-    /**
-     * @param buffer
-     * @param offset
-     * @param size
-     * @param presentationTimeUs
-     * @return
-     */
-    protected boolean internalWriteVideo(final ByteBuffer buffer, final int offset, final int size, final long presentationTimeUs) {
-		if (DEBUG) Log.v(TAG, "internalWriteVideo");
-        return false;
     }
 
     /**
@@ -426,38 +381,13 @@ public class MediaMoviePlayer {
         return -1;
     }
 
+    public void setSourcePath(String sourcePath) { this.mSourcePath = sourcePath; }
 
-    /**
-     * 设置地址
-     * @param sourcePath
-     */
-    public void setSourcePath(String sourcePath) {
-        this.mSourcePath = sourcePath;
-    }
+    public boolean isStop() { return mPlayerState == STATE_STOP; }
 
-    /**
-     * 是否停止
-     * @return
-     */
-    public boolean isStop() {
-        return mPlayerState == STATE_STOP;
-    }
+    public boolean isPlaying() { return mPlayerState == STATE_PLAYING; }
 
-    /**
-     * 是否在播放
-     * @return
-     */
-    public boolean isPlaying() {
-        return mPlayerState == STATE_PLAYING;
-    }
-
-    /**
-     * 是否 暂停状态
-     * @return
-     */
-    public boolean isPaused() {
-        return mPlayerState == STATE_PAUSED;
-    }
+    public boolean isPaused() { return mPlayerState == STATE_PAUSED; }
 
     static class OnImageListenser implements ImageReader.OnImageAvailableListener
     {
@@ -476,25 +406,25 @@ public class MediaMoviePlayer {
             }  catch (Exception ex) {
                 Log.e(TAG, ex.toString());
 
-                new Thread(() -> {
-                    try {
-                        Thread.sleep(3000);
-                        Log.i(TAG, "onImageAvailable: clear imageList");
-                        for (int i = 0; i < imageList.size(); i++) {
-                            imageList.get(i).close();
-                        }
-                        imageList.clear();
-
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }).start();
+//                new Thread(() -> {
+//                    try {
+//                        Thread.sleep(3000);
+//                        Log.i(TAG, "onImageAvailable: clear imageList");
+//                        for (int i = 0; i < imageList.size(); i++) {
+//                            imageList.get(i).close();
+//                        }
+//                        imageList.clear();
+//
+//                    } catch (InterruptedException e) {
+//                        e.printStackTrace();
+//                    }
+//                }).start();
             }
 
             if (image != null)
                 imageList.add(image);
 
-//            image.close();
+            image.close();
         }
     }
 
